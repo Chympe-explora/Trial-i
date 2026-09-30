@@ -73,6 +73,36 @@
     ["circle", { cx: 12, cy: 8, r: 6 }]
   ]);
   var ChevronDown = makeIcon([["path", { d: "m6 9 6 6 6-6" }]]);
+  var Tag = makeIcon([["path", { d: "M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z" }], ["circle", { cx: 7.5, cy: 7.5, r: 0.5, fill: "currentColor" }]]);
+  var MessageCircle = makeIcon([["path", { d: "M7.9 20A9 9 0 1 0 4 16.1L2 22Z" }]]);
+  var Users = makeIcon([["path", { d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" }], ["circle", { cx: 9, cy: 7, r: 4 }], ["path", { d: "M22 21v-2a4 4 0 0 0-3-3.87" }], ["path", { d: "M16 3.13a4 4 0 0 1 0 7.75" }]]);
+  var House = makeIcon([["path", { d: "M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" }], ["path", { d: "M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" }]]);
+  var BADGE_ICONS = { tag: Tag, chat: MessageCircle, users: Users, shield: Shield, home: House, award: Award, star: Star };
+  var BADGE_ICON_ORDER = ["tag", "chat", "users", "shield", "home"];
+
+  // ---------------------------------------------------------------------
+  // Text chunking: splits a long paragraph into short 1-2 sentence pieces
+  // (display only; the text in config.js is never changed). Very short
+  // fragments ("Dark. Silent. Ancient.") are grouped so they don't become
+  // one-word paragraphs.
+  // ---------------------------------------------------------------------
+  function chunkText(text) {
+    var t = String(text == null ? "" : text).trim();
+    if (!t) return [];
+    var safe = t.replace(/(\d)\.(\d)/g, "$1\u0001$2");
+    var parts = safe.match(/[^.!?\u2026]+(?:[.!?\u2026]+["\u201D\u2019')\]]*|$)/g) || [safe];
+    var sents = parts.map(function (x) { return x.replace(/\u0001/g, ".").trim(); }).filter(Boolean);
+    var chunks = [], cur = "", n = 0;
+    sents.forEach(function (x) {
+      cur = cur ? cur + " " + x : x; n++;
+      if (cur.length >= 70 || (n >= 2 && cur.length >= 40)) { chunks.push(cur); cur = ""; n = 0; }
+    });
+    if (cur) {
+      if (chunks.length && cur.length < 12) chunks[chunks.length - 1] += " " + cur;
+      else chunks.push(cur);
+    }
+    return chunks;
+  }
 
   // ---------------------------------------------------------------------
   // Shared little components
@@ -968,6 +998,7 @@
 
     // "Why Book Us" starts collapsed; visitors tap the header to expand it.
     var bookingOpenState = useState(false); var bookingOpen = bookingOpenState[0], setBookingOpen = bookingOpenState[1];
+    var bookingMoreState = useState(false); var bookingMore = bookingMoreState[0], setBookingMore = bookingMoreState[1];
     var pageState = useState("home"); var page = pageState[0], setPage = pageState[1];
 
     // Live ratings summary (average + count) — set by RatingsSection
@@ -1189,7 +1220,7 @@ function closeNotice() {
         GlassCard, { className: "p-8 md:p-12" },
         HERO.badge && h("div", { className: "inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/10 text-[11px] tracking-widest" }, HERO.badge),
         h("h1", { className: "mt-6 text-[32px] md:text-[56px] font-bold leading-[0.95] tracking-tight max-w-[720px]" }, HERO.title),
-        h("p", { className: "mt-5 text-white/70 text-[15px] leading-relaxed max-w-[600px]" }, HERO.sub),
+        h("div", { className: "mt-5 space-y-2 text-white/70 text-[15px] leading-relaxed max-w-[600px]" }, chunkText(HERO.sub).map(function (c, k) { return h("p", { key: k }, c); })),
         h(
           "div", { className: "mt-8 flex flex-wrap gap-3" },
           h("button", { onClick: function () { goTo("destinations"); }, className: "bg-[#2E8B57] hover:bg-[#257a4b] px-7 py-3 rounded-full text-sm font-semibold flex items-center gap-2" }, "Explore Destinations ", h(ArrowRight, { size: 16 }))
@@ -1247,7 +1278,7 @@ function closeNotice() {
             h(
               "div", { className: "p-6 flex flex-col flex-1" },
               h("h3", { className: "text-lg font-semibold" }, d.name),
-              h("p", { className: "mt-3 text-white/70 text-sm leading-relaxed flex-1" }, d.description),
+              h("div", { className: "mt-3 space-y-2 text-white/70 text-sm leading-relaxed flex-1" }, chunkText(d.description).map(function (c, k) { return h("p", { key: k }, c); })),
               h(
                 "button",
                 {
@@ -1315,13 +1346,13 @@ function closeNotice() {
         return h("div", { key: i, className: "text-white/80 text-[15px] md:text-[18px] font-medium italic" }, block.text);
       }
       if (block.type === "paragraph") {
-        return h("p", { key: i, className: "text-[14px] md:text-[17px] text-white/70 leading-relaxed" }, block.text);
+        return h("div", { key: i, className: "space-y-2.5" }, chunkText(block.text).map(function (c, k) { return h("p", { key: k, className: "text-[14px] md:text-[17px] text-white/70 leading-relaxed" }, c); }));
       }
       if (block.type === "list") {
         return h(
           "ul", { key: i, className: "space-y-3 pl-1" },
           (block.items || []).map(function (item, j) {
-            return h("li", { key: j, className: "flex gap-2.5 text-[14px] md:text-[17px] text-white/70 leading-relaxed" }, h("span", { className: "text-emerald-400 font-bold flex-shrink-0" }, "•"), h("span", null, item));
+            return h("li", { key: j, className: "flex gap-2.5 text-[14px] md:text-[17px] text-white/70 leading-relaxed" }, h("span", { className: "text-emerald-400 font-bold flex-shrink-0" }, "•"), h("span", null, chunkText(item).map(function (c, k) { return h("span", { key: k, className: "block" + (k ? " mt-1.5" : "") }, c); })));
           })
         );
       }
@@ -1340,72 +1371,134 @@ function closeNotice() {
       }
       return null;
     }
+    // Split a flat block list into separate cards: a new card starts at each
+    // heading (images stay with the text above them). A heading that directly
+    // follows another heading stays in the same card so no card is heading-only.
+    function splitIntoGroups(blocks) {
+      var groups = [], cur = [], curHasBody = false;
+      (blocks || []).forEach(function (b) {
+        if (b.type === "heading" && curHasBody) { groups.push(cur); cur = []; curHasBody = false; }
+        cur.push(b);
+        if (b.type !== "heading") curHasBody = true;
+      });
+      if (cur.length) groups.push(cur);
+      return groups;
+    }
+    var expGroups = splitIntoGroups(EXP.blocks);
     var experiences = h(
       "section", { id: "experiences", className: "scroll-mt-24 relative" },
       h(SectionBG, { section: "experiences" }),
-      h(
-        GlassCard, { className: "p-4 md:p-10" },
-        h("h2", { className: "text-2xl md:text-4xl font-bold tracking-tight text-center" }, EXP.title),
-        h(
-          "div", { className: "mt-8 max-w-[720px] md:max-w-[1120px] mx-auto space-y-5" },
-          (EXP.blocks || []).map(renderBlock)
-        )
-      )
+      h("div", { className: "space-y-6 kc-card-stack" }, expGroups.map(function (group, gi) {
+        return h(
+          GlassCard, { key: gi, className: "p-4 md:p-10" },
+          gi === 0 && h("h2", { className: "text-2xl md:text-4xl font-bold tracking-tight text-center" }, EXP.title),
+          h(
+            "div", { className: (gi === 0 ? "mt-8 " : "") + "max-w-[720px] md:max-w-[1120px] mx-auto space-y-5" },
+            group.map(renderBlock)
+          )
+        );
+      }))
     );
 
     // ---- Booking / "Why Book Us" ---------------------------------------
     var BOOKING = CONTENT.booking || { title: "WHY BOOK US?", subtitle: "", intro: "", reasons: [], closing: [] };
+    var BOOKING_REASONS = BOOKING.reasons || [];
+    var badgeCard = BOOKING_REASONS.length > 0 && h(
+      GlassCard, { className: "p-4 md:p-8" },
+      h(
+        "div", { className: "grid grid-cols-2 md:grid-cols-5 gap-2.5 md:gap-4" },
+        BOOKING_REASONS.map(function (r, i) {
+          var Ic = BADGE_ICONS[r.icon] || BADGE_ICONS[BADGE_ICON_ORDER[i % BADGE_ICON_ORDER.length]] || Award;
+          var label = r.badgeTitle || String(r.title || "").split(/[.!?]/)[0];
+          var line = r.badgeLine || chunkText(r.description)[0] || "";
+          var lastOdd = i === BOOKING_REASONS.length - 1 && BOOKING_REASONS.length % 2 === 1;
+          return h(
+            "div", { key: i, className: "flex flex-col items-center text-center gap-2 rounded-2xl bg-white/5 border border-white/10 px-3 py-4" + (lastOdd ? " col-span-2 md:col-span-1" : "") },
+            h("div", { className: "w-11 h-11 rounded-full bg-emerald-500/15 border border-emerald-400/25 flex items-center justify-center text-emerald-300" }, h(Ic, { size: 22 })),
+            h("div", { className: "text-[13px] md:text-[14px] font-semibold leading-snug" }, label),
+            line && h("div", { className: "text-[12px] md:text-[13px] text-white/60 leading-snug" }, line)
+          );
+        })
+      ),
+      h(
+        "button",
+        {
+          type: "button",
+          onClick: function () { setBookingMore(function (v) { return !v; }); },
+          className: "mt-4 w-full flex items-center justify-center gap-1.5 text-[13px] font-medium text-emerald-300 hover:text-emerald-200",
+          "aria-expanded": bookingMore ? "true" : "false"
+        },
+        bookingMore ? "Show less" : "Read the full story",
+        h(ChevronDown, { size: 16, className: "transition-transform duration-300 " + (bookingMore ? "rotate-180" : "") })
+      )
+    );
     var booking = h(
       "section", { id: "booking", className: "scroll-mt-24 relative" },
       h(SectionBG, { section: "booking" }),
       h(
-        GlassCard, { className: "kc-flat p-4 md:p-12" },
+        "div", null,
         h(
-          "button",
-          {
-            type: "button",
-            onClick: function () { setBookingOpen(function (v) { return !v; }); },
-            className: "kc-flat w-full flex items-center justify-between gap-4 text-left",
-            "aria-expanded": bookingOpen ? "true" : "false"
-          },
+          GlassCard, { className: "kc-flat p-4 md:p-12" },
           h(
-            "div", { className: "flex-1" },
-            h("h2", { className: "text-2xl md:text-3xl font-bold tracking-tight text-center" }, BOOKING.title),
-            BOOKING.subtitle && h("p", { className: "mt-2 text-white/80 text-base font-medium text-center" }, BOOKING.subtitle)
+            "button",
+            {
+              type: "button",
+              onClick: function () { setBookingOpen(function (v) { return !v; }); },
+              className: "kc-flat w-full flex items-center justify-between gap-4 text-left",
+              "aria-expanded": bookingOpen ? "true" : "false"
+            },
+            h(
+              "div", { className: "flex-1" },
+              h("h2", { className: "text-2xl md:text-3xl font-bold tracking-tight text-center" }, BOOKING.title),
+              BOOKING.subtitle && h("p", { className: "mt-2 text-white/80 text-base font-medium text-center" }, BOOKING.subtitle)
+            ),
+            h(
+              "div", { className: "w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0" },
+              h(ChevronDown, { size: 20, className: "transition-transform duration-300 " + (bookingOpen ? "rotate-180" : "") })
+            )
           ),
           h(
-            "div", { className: "w-9 h-9 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center flex-shrink-0" },
-            h(ChevronDown, { size: 20, className: "transition-transform duration-300 " + (bookingOpen ? "rotate-180" : "") })
+            "div",
+            { className: "grid transition-[grid-template-rows] duration-300 ease-out " + (bookingOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]") },
+            h(
+              "div", { className: "overflow-hidden" },
+              BOOKING.intro && h("div", { className: "mt-8 space-y-2 text-white/60 text-sm leading-relaxed text-center max-w-[640px] md:max-w-[960px] mx-auto" }, chunkText(BOOKING.intro).map(function (c, k) { return h("p", { key: k }, c); }))
+            )
           )
         ),
+        // Trust badges (icon + short line), with the full story one tap away.
         h(
           "div",
-          {
-            className: "grid transition-[grid-template-rows] duration-300 ease-out " + (bookingOpen ? "grid-rows-[1fr] mt-8" : "grid-rows-[0fr] mt-0")
-          },
+          { className: "grid transition-[grid-template-rows] duration-300 ease-out " + (bookingOpen ? "grid-rows-[1fr] mt-6" : "grid-rows-[0fr] mt-0") },
           h(
             "div", { className: "overflow-hidden" },
-            BOOKING.intro && h("p", { className: "mt-4 text-white/60 text-sm leading-relaxed text-center max-w-[640px] md:max-w-[960px] mx-auto" }, BOOKING.intro),
             h(
-              "div", { className: "mt-10 space-y-6 max-w-[720px] md:max-w-[1120px] mx-auto" },
-              (BOOKING.reasons || []).map(function (r, i) {
+              "div", { className: "space-y-6 kc-card-stack" },
+              badgeCard,
+              bookingMore && BOOKING_REASONS.map(function (r, i) {
                 return h(
-                  "div", { key: i, className: "pt-6 border-t border-white/10 first:pt-0 first:border-t-0" },
+                  GlassCard, { key: i, className: "p-4 md:p-12" },
                   h(
-                    "div", { className: "flex items-center gap-3" },
-                    r.emoji && h("span", { className: "text-2xl" }, r.emoji),
-                    h("h3", { className: "font-semibold text-[15px]" }, r.title)
-                  ),
-                  r.description && h("p", { className: "mt-3 text-[13px] text-white/70 leading-relaxed" }, r.description),
-                  h(ImageSlot, { slotKey: "booking_" + (i + 1), className: "mt-4 rounded-xl overflow-hidden aspect-[16/9] bg-black/20" })
+                    "div", { className: "max-w-[720px] md:max-w-[1120px] mx-auto" },
+                    h(
+                      "div", { className: "flex items-center gap-3" },
+                      r.emoji && h("span", { className: "text-2xl" }, r.emoji),
+                      h("h3", { className: "font-semibold text-[15px]" }, r.title)
+                    ),
+                    r.description && h("div", { className: "mt-3 space-y-2" }, chunkText(r.description).map(function (c, k) { return h("p", { key: k, className: "text-[13px] text-white/70 leading-relaxed" }, c); })),
+                    h(ImageSlot, { slotKey: "booking_" + (i + 1), className: "mt-4 rounded-xl overflow-hidden aspect-[16/9] bg-black/20" })
+                  )
                 );
-              })
-            ),
-            BOOKING.closing && BOOKING.closing.length > 0 && h(
-              "div", { className: "mt-10 pt-8 border-t border-white/10 max-w-[640px] md:max-w-[960px] mx-auto text-center" },
-              BOOKING.closing.map(function (line, i) {
-                return h("p", { key: i, className: "text-white/70 text-sm leading-relaxed mt-2" }, line);
-              })
+              }),
+              BOOKING.closing && BOOKING.closing.length > 0 && h(
+                GlassCard, { key: "closing", className: "p-4 md:p-12" },
+                h(
+                  "div", { className: "max-w-[640px] md:max-w-[960px] mx-auto text-center space-y-2" },
+                  BOOKING.closing.map(function (line, i) {
+                    return h("p", { key: i, className: "text-white/70 text-sm leading-relaxed" }, line);
+                  })
+                )
+              )
             )
           )
         )
@@ -1414,26 +1507,18 @@ function closeNotice() {
 
     // ---- About Us -------------------------------------------------------
     var ABOUT = CONTENT.about || { title: "About Us", blocks: [] };
-    var about = h(
-      "section", { id: "about", className: "scroll-mt-24 relative" },
-      h(SectionBG, { section: "about" }),
-      h(
-        GlassCard, { className: "p-4 md:p-12" },
-        h("h2", { className: "text-2xl md:text-4xl font-bold tracking-tight text-center" }, ABOUT.title),
-        h(
-          "div", { className: "mt-8 max-w-[720px] md:max-w-[1120px] mx-auto space-y-5" },
-          (ABOUT.blocks || []).map(function (block, i) {
+    var renderAboutBlock = function (block, i) {
             if (block.type === "heading") {
               return h("h3", { key: i, className: "text-lg md:text-3xl font-semibold text-white pt-2" }, block.text);
             }
             if (block.type === "paragraph") {
-              return h("p", { key: i, className: "text-[14px] md:text-[17px] text-white/70 leading-relaxed" }, block.text);
+              return h("div", { key: i, className: "space-y-2.5" }, chunkText(block.text).map(function (c, k) { return h("p", { key: k, className: "text-[14px] md:text-[17px] text-white/70 leading-relaxed" }, c); }));
             }
             if (block.type === "list") {
               return h(
                 "ul", { key: i, className: "space-y-3 pl-1" },
                 (block.items || []).map(function (item, j) {
-                  return h("li", { key: j, className: "flex gap-2.5 text-[14px] md:text-[17px] text-white/70 leading-relaxed" }, h("span", null, item));
+                  return h("li", { key: j, className: "flex gap-2.5 text-[14px] md:text-[17px] text-white/70 leading-relaxed" }, h("span", null, chunkText(item).map(function (c, k) { return h("span", { key: k, className: "block" + (k ? " mt-1.5" : "") }, c); })));
                 })
               );
             }
@@ -1444,9 +1529,21 @@ function closeNotice() {
               return h(ImageSlot, { key: i, slotKey: block.key, className: "rounded-xl overflow-hidden aspect-[16/9] bg-black/20" });
             }
             return null;
-          })
-        )
-      )
+          };
+    var aboutGroups = splitIntoGroups(ABOUT.blocks);
+    var about = h(
+      "section", { id: "about", className: "scroll-mt-24 relative" },
+      h(SectionBG, { section: "about" }),
+      h("div", { className: "space-y-6 kc-card-stack" }, aboutGroups.map(function (group, gi) {
+        return h(
+          GlassCard, { key: gi, className: "p-4 md:p-12" },
+          gi === 0 && h("h2", { className: "text-2xl md:text-4xl font-bold tracking-tight text-center" }, ABOUT.title),
+          h(
+            "div", { className: (gi === 0 ? "mt-8 " : "") + "max-w-[720px] md:max-w-[1120px] mx-auto space-y-5" },
+            group.map(renderAboutBlock)
+          )
+        );
+      }))
     );
 
     // ---- Visitor Ratings -------------------------------------------------

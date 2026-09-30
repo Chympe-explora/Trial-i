@@ -519,26 +519,41 @@
       {
         "emoji": "",
         "title": "Best Price. No Surprises.",
+        "icon": "tag",
+        "badgeTitle": "Best Price",
+        "badgeLine": "What we quote is what you pay.",
         "description": "No third-party markups. No hidden fees. No \"convenience charges\" that feel anything but convenient. When you book direct, you get the best possible rate—period. What we quote is what you pay."
       },
       {
         "emoji": "",
         "title": "Talk to Us. Not a Bot.",
+        "icon": "chat",
+        "badgeTitle": "Talk to Locals",
+        "badgeLine": "Real people, not a bot.",
         "description": "Have a question at 2 AM? Worried about your gear? Want to know if you can handle the altitude? When you book through our website, you're talking directly to our local team. People who've walked the trail. People who know the jungle like their own backyard. Not a call center in another time zone."
       },
       {
         "emoji": "",
         "title": "Exclusive Access. Limited Spots.",
+        "icon": "users",
+        "badgeTitle": "Small Groups",
+        "badgeLine": "Never more than 8 people.",
         "description": "We keep our groups intentionally small—never more than 8 people. Book direct and you get first pick of departure dates, not the leftovers. Because this experience was never meant to be mass-produced."
       },
       {
         "emoji": "",
         "title": "Book with Confidence. Change with Ease.",
+        "icon": "shield",
+        "badgeTitle": "Flexible Booking",
+        "badgeLine": "Free date changes, easy cancellation.",
         "description": "Life happens. We get it. That's why we offer free date changes and a flexible cancellation policy when you book direct. No endless forms. No runaround. Just a real person on the other end who actually wants to help."
       },
       {
         "emoji": "",
         "title": "100% Locally-Led. Zero Corporate Overlay.",
+        "icon": "home",
+        "badgeTitle": "100% Local",
+        "badgeLine": "Your money stays here.",
         "description": "This isn't a franchise. It's not a global chain with a logo plastered on a jeep. We're a small, local team who lives and breathes this jungle. When you book with us, your money stays here. Your experience is guided by people who call this place home. And your adventure is authentic—not manufactured."
       }
     ],

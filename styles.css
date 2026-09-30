@@ -282,3 +282,14 @@ input[type="file"]:hover::file-selector-button {
     0 10px 26px rgba(0,0,0,.4) !important;
 }
 
+
+/* ============================================================
+   TIGHT GAP BETWEEN SPLIT CARDS (phones only, <768px)
+   Only the cards that were split out of one section
+   (.kc-card-stack / .kc-split-stack) sit 10px apart. Card width and
+   the gap between different sections are the original ones.
+   ============================================================ */
+.kc-card-stack{display:flex;flex-direction:column}
+@media (max-width:767px){
+  .kc-card-stack>*+*{margin-top:10px!important}
+}
