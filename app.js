@@ -998,8 +998,7 @@
 
     // "Why Book Us" starts collapsed; visitors tap the header to expand it.
     var bookingOpenState = useState(false); var bookingOpen = bookingOpenState[0], setBookingOpen = bookingOpenState[1];
-    var bookingMoreState = useState(false); var bookingMore = bookingMoreState[0], setBookingMore = bookingMoreState[1];
-    var pageState = useState("home"); var page = pageState[0], setPage = pageState[1];
+        var pageState = useState("home"); var page = pageState[0], setPage = pageState[1];
 
     // Live ratings summary (average + count) — set by RatingsSection
     // once it loads/updates, read by the compact rating summary near
@@ -1071,6 +1070,55 @@
       }, 100);
       return function () { clearInterval(timer); };
     }, []);
+
+    // ---- Scroll effect (home page): cards shrink and fade as they reach the
+    // top or bottom edge of the screen, like scrolling the phone's
+    // notification shade. Cards at rest in the middle of the screen have no
+    // transform at all, so nothing else on the page is affected.
+    useEffect(function () {
+      if (page !== "home") return;
+      if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      var CARD = '[class*="rounded-[24px]"]';
+      var TOP = 100;   // bottom edge of the floating header
+      var ZONE = 150;  // distance over which the effect ramps in
+      var raf = 0;
+      function clamp(x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
+      function apply() {
+        raf = 0;
+        var H = window.innerHeight;
+        var all = document.querySelectorAll("main " + CARD);
+        for (var i = 0; i < all.length; i++) {
+          var el = all[i];
+          if (el.parentElement && el.parentElement.closest(CARD)) continue; // only outer cards
+          var r = el.getBoundingClientRect();
+          var t = 0, origin = "50% 50%";
+          if (r.height > 0) {
+            if (r.bottom < TOP + ZONE) { t = clamp(1 - (r.bottom - TOP) / ZONE); origin = "50% 100%"; }
+            else if (r.top > H - ZONE) { t = clamp((r.top - (H - ZONE)) / ZONE) * 0.7; origin = "50% 0%"; }
+          }
+          if (t < 0.01) {
+            if (el.style.transform || el.style.opacity) { el.style.transform = ""; el.style.opacity = ""; }
+          } else {
+            el.style.transformOrigin = origin;
+            el.style.transform = "scale(" + (1 - 0.07 * t).toFixed(3) + ")";
+            el.style.opacity = (1 - 0.7 * t).toFixed(3);
+          }
+        }
+      }
+      function queue() { if (!raf) raf = requestAnimationFrame(apply); }
+      window.addEventListener("scroll", queue, { passive: true });
+      window.addEventListener("resize", queue);
+      var timer = setInterval(queue, 400); // catches cards that open/close without scrolling
+      queue();
+      return function () {
+        window.removeEventListener("scroll", queue);
+        window.removeEventListener("resize", queue);
+        clearInterval(timer);
+        if (raf) cancelAnimationFrame(raf);
+        var all = document.querySelectorAll("main " + CARD);
+        for (var i = 0; i < all.length; i++) { all[i].style.transform = ""; all[i].style.opacity = ""; }
+      };
+    }, [page]);
 
     // ---- Notice popup: shows once per visitor, closable, admin-resettable ----
     var NOTICE = CONTENT.notice || {};
@@ -1220,7 +1268,7 @@ function closeNotice() {
         GlassCard, { className: "p-8 md:p-12" },
         HERO.badge && h("div", { className: "inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/10 text-[11px] tracking-widest" }, HERO.badge),
         h("h1", { className: "mt-6 text-[32px] md:text-[56px] font-bold leading-[0.95] tracking-tight max-w-[720px]" }, HERO.title),
-        h("div", { className: "mt-5 space-y-2 text-white/70 text-[15px] leading-relaxed max-w-[600px]" }, chunkText(HERO.sub).map(function (c, k) { return h("p", { key: k }, c); })),
+        h("p", { className: "mt-5 text-white/70 text-[15px] leading-relaxed max-w-[600px]" }, HERO.sub),
         h(
           "div", { className: "mt-8 flex flex-wrap gap-3" },
           h("button", { onClick: function () { goTo("destinations"); }, className: "bg-[#2E8B57] hover:bg-[#257a4b] px-7 py-3 rounded-full text-sm font-semibold flex items-center gap-2" }, "Explore Destinations ", h(ArrowRight, { size: 16 }))
@@ -1278,7 +1326,7 @@ function closeNotice() {
             h(
               "div", { className: "p-6 flex flex-col flex-1" },
               h("h3", { className: "text-lg font-semibold" }, d.name),
-              h("div", { className: "mt-3 space-y-2 text-white/70 text-sm leading-relaxed flex-1" }, chunkText(d.description).map(function (c, k) { return h("p", { key: k }, c); })),
+              h("p", { className: "mt-3 text-white/70 text-sm leading-relaxed flex-1" }, d.description),
               h(
                 "button",
                 {
@@ -1346,13 +1394,13 @@ function closeNotice() {
         return h("div", { key: i, className: "text-white/80 text-[15px] md:text-[18px] font-medium italic" }, block.text);
       }
       if (block.type === "paragraph") {
-        return h("div", { key: i, className: "space-y-2.5" }, chunkText(block.text).map(function (c, k) { return h("p", { key: k, className: "text-[14px] md:text-[17px] text-white/70 leading-relaxed" }, c); }));
+        return h("p", { key: i, className: "text-[14px] md:text-[17px] text-white/70 leading-relaxed" }, block.text);
       }
       if (block.type === "list") {
         return h(
           "ul", { key: i, className: "space-y-3 pl-1" },
           (block.items || []).map(function (item, j) {
-            return h("li", { key: j, className: "flex gap-2.5 text-[14px] md:text-[17px] text-white/70 leading-relaxed" }, h("span", { className: "text-emerald-400 font-bold flex-shrink-0" }, "•"), h("span", null, chunkText(item).map(function (c, k) { return h("span", { key: k, className: "block" + (k ? " mt-1.5" : "") }, c); })));
+            return h("li", { key: j, className: "flex gap-2.5 text-[14px] md:text-[17px] text-white/70 leading-relaxed" }, h("span", { className: "text-emerald-400 font-bold flex-shrink-0" }, "•"), h("span", null, item));
           })
         );
       }
@@ -1402,36 +1450,6 @@ function closeNotice() {
 
     // ---- Booking / "Why Book Us" ---------------------------------------
     var BOOKING = CONTENT.booking || { title: "WHY BOOK US?", subtitle: "", intro: "", reasons: [], closing: [] };
-    var BOOKING_REASONS = BOOKING.reasons || [];
-    var badgeCard = BOOKING_REASONS.length > 0 && h(
-      GlassCard, { className: "p-4 md:p-8" },
-      h(
-        "div", { className: "grid grid-cols-2 md:grid-cols-5 gap-2.5 md:gap-4" },
-        BOOKING_REASONS.map(function (r, i) {
-          var Ic = BADGE_ICONS[r.icon] || BADGE_ICONS[BADGE_ICON_ORDER[i % BADGE_ICON_ORDER.length]] || Award;
-          var label = r.badgeTitle || String(r.title || "").split(/[.!?]/)[0];
-          var line = r.badgeLine || chunkText(r.description)[0] || "";
-          var lastOdd = i === BOOKING_REASONS.length - 1 && BOOKING_REASONS.length % 2 === 1;
-          return h(
-            "div", { key: i, className: "flex flex-col items-center text-center gap-2 rounded-2xl bg-white/5 border border-white/10 px-3 py-4" + (lastOdd ? " col-span-2 md:col-span-1" : "") },
-            h("div", { className: "w-11 h-11 rounded-full bg-emerald-500/15 border border-emerald-400/25 flex items-center justify-center text-emerald-300" }, h(Ic, { size: 22 })),
-            h("div", { className: "text-[13px] md:text-[14px] font-semibold leading-snug" }, label),
-            line && h("div", { className: "text-[12px] md:text-[13px] text-white/60 leading-snug" }, line)
-          );
-        })
-      ),
-      h(
-        "button",
-        {
-          type: "button",
-          onClick: function () { setBookingMore(function (v) { return !v; }); },
-          className: "mt-4 w-full flex items-center justify-center gap-1.5 text-[13px] font-medium text-emerald-300 hover:text-emerald-200",
-          "aria-expanded": bookingMore ? "true" : "false"
-        },
-        bookingMore ? "Show less" : "Read the full story",
-        h(ChevronDown, { size: 16, className: "transition-transform duration-300 " + (bookingMore ? "rotate-180" : "") })
-      )
-    );
     var booking = h(
       "section", { id: "booking", className: "scroll-mt-24 relative" },
       h(SectionBG, { section: "booking" }),
@@ -1462,11 +1480,11 @@ function closeNotice() {
             { className: "grid transition-[grid-template-rows] duration-300 ease-out " + (bookingOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]") },
             h(
               "div", { className: "overflow-hidden" },
-              BOOKING.intro && h("div", { className: "mt-8 space-y-2 text-white/60 text-sm leading-relaxed text-center max-w-[640px] md:max-w-[960px] mx-auto" }, chunkText(BOOKING.intro).map(function (c, k) { return h("p", { key: k }, c); }))
+              BOOKING.intro && h("p", { className: "mt-8 text-white/60 text-sm leading-relaxed text-center max-w-[640px] md:max-w-[960px] mx-auto" }, BOOKING.intro)
             )
           )
         ),
-        // Trust badges (icon + short line), with the full story one tap away.
+        // Each reason is its own card; all of them open/close with the header above.
         h(
           "div",
           { className: "grid transition-[grid-template-rows] duration-300 ease-out " + (bookingOpen ? "grid-rows-[1fr] mt-6" : "grid-rows-[0fr] mt-0") },
@@ -1474,8 +1492,7 @@ function closeNotice() {
             "div", { className: "overflow-hidden" },
             h(
               "div", { className: "space-y-6 kc-card-stack" },
-              badgeCard,
-              bookingMore && BOOKING_REASONS.map(function (r, i) {
+              (BOOKING.reasons || []).map(function (r, i) {
                 return h(
                   GlassCard, { key: i, className: "p-4 md:p-12" },
                   h(
@@ -1485,7 +1502,7 @@ function closeNotice() {
                       r.emoji && h("span", { className: "text-2xl" }, r.emoji),
                       h("h3", { className: "font-semibold text-[15px]" }, r.title)
                     ),
-                    r.description && h("div", { className: "mt-3 space-y-2" }, chunkText(r.description).map(function (c, k) { return h("p", { key: k, className: "text-[13px] text-white/70 leading-relaxed" }, c); })),
+                    r.description && h("p", { className: "mt-3 text-[13px] text-white/70 leading-relaxed" }, r.description),
                     h(ImageSlot, { slotKey: "booking_" + (i + 1), className: "mt-4 rounded-xl overflow-hidden aspect-[16/9] bg-black/20" })
                   )
                 );
@@ -1512,13 +1529,13 @@ function closeNotice() {
               return h("h3", { key: i, className: "text-lg md:text-3xl font-semibold text-white pt-2" }, block.text);
             }
             if (block.type === "paragraph") {
-              return h("div", { key: i, className: "space-y-2.5" }, chunkText(block.text).map(function (c, k) { return h("p", { key: k, className: "text-[14px] md:text-[17px] text-white/70 leading-relaxed" }, c); }));
+              return h("p", { key: i, className: "text-[14px] md:text-[17px] text-white/70 leading-relaxed" }, block.text);
             }
             if (block.type === "list") {
               return h(
                 "ul", { key: i, className: "space-y-3 pl-1" },
                 (block.items || []).map(function (item, j) {
-                  return h("li", { key: j, className: "flex gap-2.5 text-[14px] md:text-[17px] text-white/70 leading-relaxed" }, h("span", null, chunkText(item).map(function (c, k) { return h("span", { key: k, className: "block" + (k ? " mt-1.5" : "") }, c); })));
+                  return h("li", { key: j, className: "flex gap-2.5 text-[14px] md:text-[17px] text-white/70 leading-relaxed" }, h("span", null, item));
                 })
               );
             }
