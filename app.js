@@ -572,6 +572,76 @@
     // room even for visitors who just wanted to glance at the score.
     var rateFormOpenState = useState(false); var rateFormOpen = rateFormOpenState[0], setRateFormOpen = rateFormOpenState[1];
 
+    // ---- Optional review photos (max 3) -------------------------------
+    // Each picked photo is compressed in the browser (WebP, max 1920px,
+    // ~80% quality, target < 500 KB) before it is ever uploaded.
+    var MAX_PHOTOS = 3;
+    var photosState = useState([]); var photos = photosState[0], setPhotos = photosState[1]; // [{ file, url }]
+    var photoBusyState = useState(false); var photoBusy = photoBusyState[0], setPhotoBusy = photoBusyState[1];
+    var photoErrState = useState(""); var photoError = photoErrState[0], setPhotoError = photoErrState[1];
+    var lightboxState = useState(""); var lightbox = lightboxState[0], setLightbox = lightboxState[1];
+
+    function loadCompressionLib() {
+      // Loaded only when someone actually picks a photo, so it costs nothing otherwise.
+      if (window.imageCompression) return Promise.resolve(window.imageCompression);
+      return new Promise(function (resolve, reject) {
+        var el = document.createElement("script");
+        el.src = "https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js";
+        el.onload = function () { window.imageCompression ? resolve(window.imageCompression) : reject(new Error("missing")); };
+        el.onerror = function () { reject(new Error("load failed")); };
+        document.head.appendChild(el);
+      });
+    }
+    function clearPhotos() {
+      photos.forEach(function (p) { try { URL.revokeObjectURL(p.url); } catch (e) {} });
+      setPhotos([]); setPhotoError("");
+    }
+    function removePhoto(idx) {
+      var p = photos[idx];
+      if (p) { try { URL.revokeObjectURL(p.url); } catch (e) {} }
+      setPhotos(photos.filter(function (_, i) { return i !== idx; }));
+      setPhotoError("");
+    }
+    function onPickPhotos(e) {
+      var picked = Array.prototype.slice.call(e.target.files || []);
+      e.target.value = ""; // lets the same photo be picked again after removing it
+      if (!picked.length) return;
+      var room = MAX_PHOTOS - photos.length;
+      if (room <= 0) return;
+      var note = picked.length > room ? "Only " + MAX_PHOTOS + " photos allowed — extra photos were skipped." : "";
+      picked = picked.slice(0, room);
+      setPhotoError(""); setPhotoBusy(true);
+      loadCompressionLib()
+        .then(function (compress) {
+          return Promise.all(picked.map(function (f) {
+            if (!/^image\//.test(f.type || "")) return Promise.reject(new Error("not an image"));
+            return compress(f, { maxSizeMB: 0.5, maxWidthOrHeight: 1920, fileType: "image/webp", initialQuality: 0.8, useWebWorker: true });
+          }));
+        })
+        .then(function (blobs) {
+          var added = blobs.map(function (b) {
+            var file = new File([b], "photo.webp", { type: b.type || "image/webp" });
+            return { file: file, url: URL.createObjectURL(file) };
+          });
+          if (added.some(function (a) { return a.file.size > 2 * 1024 * 1024; })) {
+            added.forEach(function (a) { URL.revokeObjectURL(a.url); });
+            setPhotoError("That photo is still too large after compression. Please pick a smaller one.");
+            return;
+          }
+          setPhotos(function (prev) { return prev.concat(added).slice(0, MAX_PHOTOS); });
+          if (note) setPhotoError(note);
+        })
+        .catch(function () { setPhotoError("Couldn't read one of those photos. Please try a different image."); })
+        .finally(function () { setPhotoBusy(false); });
+    }
+    useEffect(function () {
+      if (!lightbox) return;
+      function onKey(ev) { if (ev.key === "Escape") setLightbox(""); }
+      window.addEventListener("keydown", onKey);
+      return function () { window.removeEventListener("keydown", onKey); };
+    }, [lightbox]);
+    function photoUrl(key) { return API_BASE + "/api/rating-photo/" + String(key).split("/").map(encodeURIComponent).join("/"); }
+
     function loadRatings() {
       fetch(API_BASE + "/api/ratings?site=" + encodeURIComponent(siteId))
         .then(function (r) { return r.json(); })
@@ -595,23 +665,34 @@
       if (!form.rating) { setError("Tap a star to rate us first."); return; }
       setError("");
       setSubmitting(true);
-      fetch(API_BASE + "/api/ratings", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          site: siteId, name: form.name, rating: form.rating, comment: form.comment,
-          sessionId: (window.KCBridge && window.KCBridge.sessionId) || ""
-        }),
-      })
+      var sessionId = (window.KCBridge && window.KCBridge.sessionId) || "";
+      var request;
+      if (photos.length === 0) {
+        // No photos: identical to the original request.
+        request = {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ site: siteId, name: form.name, rating: form.rating, comment: form.comment, sessionId: sessionId }),
+        };
+      } else {
+        var fd = new FormData();
+        fd.append("site", siteId); fd.append("name", form.name); fd.append("rating", String(form.rating));
+        fd.append("comment", form.comment); fd.append("sessionId", sessionId);
+        photos.forEach(function (p, i) { fd.append("photos", p.file, (i + 1) + ".webp"); });
+        request = { method: "POST", body: fd }; // browser sets the multipart header itself
+      }
+      fetch(API_BASE + "/api/ratings", request)
         .then(function (r) { return r.json(); })
         .then(function (data) {
           if (data && data.ok) {
             setJustSubmitted(true);
             setForm({ name: "", rating: 0, comment: "" });
+            clearPhotos();
             loadRatings();
           } else {
             setError((data && data.error === "too many requests")
     ? "You're submitting too fast — please wait a minute and try again."
+    : (data && data.photoError && data.message) ? data.message
     : "Something went wrong — please try again.");
           }
         })
@@ -692,6 +773,26 @@
                 onChange: function (e) { setForm(Object.assign({}, form, { comment: e.target.value })); },
                 className: "w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-white/30 resize-none"
               }),
+              // ---- Optional photos ----
+              h(
+                "div", { className: "space-y-2" },
+                photos.length < MAX_PHOTOS && h(
+                  "label", { className: "flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-dashed border-white/20 hover:bg-white/10 transition text-sm text-white/70 cursor-pointer" },
+                  h("span", null, photoBusy ? "Preparing photos\u2026" : "\ud83d\udcf7 Add photos (optional, max 3)"),
+                  h("input", { type: "file", accept: "image/*", multiple: true, disabled: photoBusy, onChange: onPickPhotos, className: "hidden" })
+                ),
+                photos.length > 0 && h(
+                  "div", { className: "flex gap-2 flex-wrap" },
+                  photos.map(function (p, i) {
+                    return h(
+                      "div", { key: p.url, className: "relative w-16 h-16" },
+                      h("img", { src: p.url, alt: "Selected photo " + (i + 1), className: "w-16 h-16 rounded-lg object-cover border border-white/15" }),
+                      h("button", { type: "button", onClick: function () { removePhoto(i); }, "aria-label": "Remove photo " + (i + 1), className: "absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-black/80 border border-white/30 text-[11px] leading-none flex items-center justify-center" }, "\u00d7")
+                    );
+                  })
+                ),
+                photoError && h("div", { className: "text-amber-300 text-xs text-center" }, photoError)
+              ),
               error && h("div", { className: "text-red-400 text-xs text-center" }, error),
               h(
                 "div", { className: "flex gap-2" },
@@ -736,10 +837,25 @@
                 h("span", { className: "font-semibold text-sm" }, r.name),
                 h(Stars, { value: r.rating, size: 14 })
               ),
-              r.comment && h("p", { className: "text-white/70 text-sm leading-relaxed" }, r.comment)
+              r.comment && h("p", { className: "text-white/70 text-sm leading-relaxed" }, r.comment),
+              Array.isArray(r.photos) && r.photos.length > 0 && h(
+                "div", { className: "mt-3 flex gap-2" },
+                r.photos.slice(0, 3).map(function (key, i) {
+                  return h(
+                    "button", { key: key, type: "button", onClick: function () { setLightbox(photoUrl(key)); }, "aria-label": "Open photo " + (i + 1), className: "w-16 h-16 rounded-lg overflow-hidden border border-white/15" },
+                    h("img", { src: photoUrl(key), alt: "Visitor photo " + (i + 1), loading: "lazy", className: "w-full h-full object-cover" })
+                  );
+                })
+              )
             );
           })
         )
+      ),
+
+      lightbox && h(
+        "div", { onClick: function () { setLightbox(""); }, className: "fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4", role: "dialog", "aria-modal": "true" },
+        h("img", { src: lightbox, alt: "Visitor photo", className: "max-w-full max-h-full rounded-lg object-contain" }),
+        h("button", { type: "button", onClick: function () { setLightbox(""); }, "aria-label": "Close photo", className: "absolute top-4 right-4 w-10 h-10 rounded-full bg-white/15 text-2xl leading-none" }, "\u00d7")
       )
     );
   }
