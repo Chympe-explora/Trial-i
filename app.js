@@ -1187,47 +1187,62 @@
       return function () { clearInterval(timer); };
     }, []);
 
-    // ---- Scroll effect (home page): cards shrink and fade as they reach the
-    // top or bottom edge of the screen, like scrolling the phone's
-    // notification shade. Cards at rest in the middle of the screen have no
-    // transform at all, so nothing else on the page is affected.
+    // ---- Scroll effect (all pages): cards shrink and fade as they reach the
+    // top or bottom edge of the screen - or of their own scrolling box (the
+    // Visitor Comments list) - like scrolling the phone's notification shade.
+    // Cards at rest have no transform at all, so nothing else is affected.
+    // Strength is tuned with the numbers just below.
     useEffect(function () {
-      if (page !== "home") return;
       if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
       var CARD = '[class*="rounded-[24px]"]';
-      var TOP = 100;   // bottom edge of the floating header
-      var ZONE = 150;  // distance over which the effect ramps in
+      var TOP = 100;      // bottom edge of the floating header
+      var ZONE = 200;     // distance over which the effect ramps in (was 150)
+      var SHRINK = 0.15;  // max shrink at the very edge (was 0.07)
+      var FADE = 0.85;    // max fade at the very edge (was 0.7)
+      var BOTTOM = 0.9;   // strength at the bottom edge (was 0.7)
       var raf = 0;
       function clamp(x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
       function apply() {
         raf = 0;
         var H = window.innerHeight;
+        var ae = document.activeElement;
+        var typing = !!(ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName));
         var all = document.querySelectorAll("main " + CARD);
         for (var i = 0; i < all.length; i++) {
           var el = all[i];
           if (el.parentElement && el.parentElement.closest(CARD)) continue; // only outer cards
           var r = el.getBoundingClientRect();
           var t = 0, origin = "50% 50%";
-          if (r.height > 0) {
-            if (r.bottom < TOP + ZONE) { t = clamp(1 - (r.bottom - TOP) / ZONE); origin = "50% 100%"; }
-            else if (r.top > H - ZONE) { t = clamp((r.top - (H - ZONE)) / ZONE) * 0.7; origin = "50% 0%"; }
+          // A card the visitor is typing in is left alone so it never shrinks under their thumb.
+          if (r.height > 0 && !(typing && el.contains(ae))) {
+            var top = TOP, bottom = H;
+            var box = el.closest(".overflow-y-auto"); // cards inside a scrolling list use that list's edges
+            if (box) {
+              var b = box.getBoundingClientRect();
+              if (b.top > top) top = b.top;
+              if (b.bottom < bottom) bottom = b.bottom;
+            }
+            var zone = Math.min(ZONE, r.height); // short cards at rest at an edge are not affected
+            if (r.bottom < top + zone) { t = clamp(1 - (r.bottom - top) / zone); origin = "50% 100%"; }
+            else if (r.top > bottom - zone) { t = clamp((r.top - (bottom - zone)) / zone) * BOTTOM; origin = "50% 0%"; }
           }
           if (t < 0.01) {
             if (el.style.transform || el.style.opacity) { el.style.transform = ""; el.style.opacity = ""; }
           } else {
             el.style.transformOrigin = origin;
-            el.style.transform = "scale(" + (1 - 0.07 * t).toFixed(3) + ")";
-            el.style.opacity = (1 - 0.7 * t).toFixed(3);
+            el.style.transform = "scale(" + (1 - SHRINK * t).toFixed(3) + ")";
+            el.style.opacity = (1 - FADE * t).toFixed(3);
           }
         }
       }
       function queue() { if (!raf) raf = requestAnimationFrame(apply); }
-      window.addEventListener("scroll", queue, { passive: true });
+      // capture:true so scrolling inside the comments box is caught too
+      window.addEventListener("scroll", queue, { passive: true, capture: true });
       window.addEventListener("resize", queue);
       var timer = setInterval(queue, 400); // catches cards that open/close without scrolling
       queue();
       return function () {
-        window.removeEventListener("scroll", queue);
+        window.removeEventListener("scroll", queue, true);
         window.removeEventListener("resize", queue);
         clearInterval(timer);
         if (raf) cancelAnimationFrame(raf);
