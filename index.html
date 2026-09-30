@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Team Explo Era</title>
+  <meta name="description" content="Discover Krem Chympe and Wilderness Expedition — guided camping and adventure trips in East Jaintia Hills, Meghalaya. Explore destinations and book directly.">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+  <!-- Open Graph / social share preview (WhatsApp, Facebook, etc.) -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Team Explo Era">
+  <meta property="og:description" content="Discover Krem Chympe and Wilderness Expedition — guided camping and adventure trips in East Jaintia Hills, Meghalaya. Explore destinations and book directly.">
+  <meta property="og:image" content="https://team-eplo-era-explore.pages.dev/og-image.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:url" content="https://team-eplo-era-explore.pages.dev/">
+  <meta property="og:site_name" content="Team Explo Era">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Team Explo Era">
+  <meta name="twitter:description" content="Discover Krem Chympe and Wilderness Expedition — guided camping and adventure trips in East Jaintia Hills, Meghalaya. Explore destinations and book directly.">
+  <meta name="twitter:image" content="https://team-eplo-era-explore.pages.dev/og-image.jpg">
+
+  <!-- Resource hints for the two destination sites this page links to
+       (see config.js destinations.items[].link/navOptions). Since this
+       page's whole job is to send visitors on to krem-chympe/ or
+       wilderness-expedition/, we get a head start on THAT page's load
+       while the visitor is still reading this one: preconnect opens the
+       DNS+TLS connection to the shared CDN/backend origins early, and
+       prefetch pulls each destination's two biggest files (config.js,
+       app.js) into the browser's cache at idle/low priority. Neither
+       one blocks or slows down this page — by the time a visitor taps
+       a destination card, its core files are often already sitting in
+       cache instead of starting from zero. -->
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.tailwindcss.com">
+  <link rel="preconnect" href="https://teamexploera-backend.book-and-explore.workers.dev">
+  <link rel="prefetch" href="krem-chympe/config.js">
+  <link rel="prefetch" href="krem-chympe/app.js">
+  <link rel="prefetch" href="wilderness-expedition/config.js">
+  <link rel="prefetch" href="wilderness-expedition/app.js">
+
+  <!--
+    ⚠️  ALL PRICES, PHOTOS, AND TEXT LIVE IN config.js NOW — not in this
+    file. Open config.js to change anything. This file (index.html) is
+    the site's engine room; you shouldn't need to touch it.
+
+    The tiny script below just watches for typos in config.js (like a
+    missing comma) and shows a clear red warning banner on the site
+    instead of the page silently going blank.
+  -->
+  <script>
+    function showConfigError(msg) {
+      if (document.getElementById("kc-config-error")) return; // already showing one
+      var el = document.createElement("div");
+      el.id = "kc-config-error";
+      el.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:99999;background:#c0392b;" +
+        "color:#fff;padding:14px 18px;font:600 13.5px/1.5 system-ui,-apple-system,sans-serif;" +
+        "text-align:center;box-shadow:0 2px 10px rgba(0,0,0,0.3);";
+      el.textContent = "⚠️ " + msg;
+      function attach() { document.body.insertBefore(el, document.body.firstChild); }
+      if (document.body) attach(); else document.addEventListener("DOMContentLoaded", attach);
+    }
+    window.addEventListener("error", function (e) {
+      if (e && e.filename && e.filename.indexOf("config.js") !== -1) {
+        showConfigError(
+          "There's a mistake in config.js (most likely a missing comma or quote mark near " +
+          "line " + e.lineno + "). Prices/content may be wrong until this is fixed: " + e.message
+        );
+      }
+    });
+  </script>
+  <script src="config.js?v=2" defer></script>
+  <script>window.KC_SITE_ID = "root";</script>
+  <!-- Pulls in anything changed from the Telegram admin bot (text,
+       photos, prices, discounts, highlights) and merges it over the
+       config.js defaults above, before the page renders. See
+       live-content.js — safe to remove and the site still works from
+       config.js alone. -->
+  <script src="live-content.js?v=2" defer></script>
+
+  <!-- Site-wide fixed background video, mounted once outside the React
+       app so it never restarts on scroll or page navigation. Reads
+       window.KC_CONTENT.background (see config.js) — safe to remove,
+       the site still renders fine without it. -->
+  <script src="background-system.js?v=2" defer></script>
+
+  <!-- Per-page/per-section font size & color overrides, set from
+       Telegram Admin (🔤 Fonts & Colors). Reads
+       window.KC_CONTENT.sectionStyles[key].typography — safe to
+       remove, the site still renders fine with its normal styling. -->
+  <script src="typography-system.js?v=2" defer></script>
+
+  <!-- Tailwind CSS (JIT engine loaded live from the CDN) — generates every
+       utility class app.js uses, on the fly, so no class is ever missing
+       no matter what markup/content changes are made later. -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <link rel="stylesheet" href="styles.css?v=2">
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- Intro splash / preload gate — plays video-animation.mp4 (put that
+       file in this same folder) while the rest of the site loads
+       underneath it. See preload-intro.js for how the reveal timing
+       works. Markup lives here, ABOVE the script tag that controls it,
+       and that script is intentionally NOT deferred so it takes over
+       the instant it's reached. -->
+  <div id="kc-intro-overlay">
+    <video id="kc-intro-video" autoplay muted playsinline preload="auto">
+      <source src="video-animation.mp4?v=2" type="video/mp4">
+    </video>
+    <button id="kc-intro-skip" type="button" aria-label="Skip intro">Skip ▶</button>
+  </div>
+  <script src="preload-intro.js?v=2"></script>
+
+  <!-- React 18 (UMD builds, loaded from cdnjs so no build step is needed) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js" defer></script>
+  <!-- MapLibre GL JS: powers the Location map (app.js's
+       WeatherMapSection) — vector tiles from MapTiler (see
+       CONTENT.weatherLocation.mapTilerApiKey in config.js; get a free
+       key at maptiler.com/cloud). Must load (deferred, same as React
+       above) before app.js runs. -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/5.12.0/maplibre-gl.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/5.12.0/maplibre-gl.min.js" defer></script>
+  <!-- Note: the "site opened" Telegram ping for THIS page now fires
+       unconditionally from inside preload-intro.js (no consent gate,
+       by request) — so consent.js/booking-bridge.js are intentionally
+       NOT loaded here. Those two stay on krem-chympe/ and
+       wilderness-expedition/ only, where they also gate actual booking
+       data collection, not just a visit ping. -->
+  <!-- ERA AI: floating chat assistant bubble. Managed from the Telegram
+       admin bot's "🤖 ERA AI" menu, including the Stop Learning toggle. -->
+  <script src="era-ai-widget.js?v=2" defer></script>
+  <!-- Main app -->
+  <script src="app.js?v=2" defer></script>
+  <!-- Makes external links open safely in a new tab -->
+  <script src="safelinks.js?v=2" defer></script>
+  <!-- Content Editor: pencil-icon tap-to-edit tool for text/images/highlights -->
+  <script src="editor.js?v=2" defer></script>
+</body>
+</html>

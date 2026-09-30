@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Only 3 URLs are listed here on purpose: this site has exactly 3 real,
+  distinct HTML documents (this root page, krem-chympe/, and
+  wilderness-expedition/). Everything past that — packages, the
+  booking form, refund policy, etc. — is a page STATE inside one of
+  those documents (?page=2, ?page=3...), not a separate crawlable URL,
+  so listing them here wouldn't give search engines anything new to
+  index. If that ever changes (e.g. real per-step URLs get added),
+  add entries for those here too.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://team-eplo-era-explore.pages.dev/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://team-eplo-era-explore.pages.dev/krem-chympe/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://team-eplo-era-explore.pages.dev/wilderness-expedition/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+</urlset>
